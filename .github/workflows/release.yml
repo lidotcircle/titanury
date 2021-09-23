@@ -1,0 +1,61 @@
+name: release
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - v[0-9]+.[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+
+
+jobs:
+  setup:
+    if: "contains(github.event.head_commit.message, '*CI*') || startsWith(github.ref, 'refs/tags')"
+    runs-on: ubuntu-20.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.release.outputs.release }}
+    steps:
+      - name: release
+        id: release
+        run: |
+          branch=$(echo ${{github.ref}} | sed 's/refs\/\(heads\|tags\)\///g') && \
+            release=$([[ "$branch" =~ v[0-9.]+ ]] && echo $branch || echo "${branch}_archive") && \
+            echo "release_name=$release" && \
+            printf "::set-output name=release::%s\n" "$release"
+
+  windows_release:
+    needs: [ setup ]
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch:
+          - amd64
+          - amd64_x86
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+      - name: archieve name
+        id: archieve_name
+        run: >
+          if ("${{ matrix.arch }}" -eq "amd64")
+            { Write-Output "::set-output name=zipname::titanury_win64.zip" }
+          else
+            { Write-Output "::set-output name=zipname::titanury_win32.zip" }
+      - name: build
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -G "NMake Makefiles" ..
+          nmake
+          del /S bin\*.pdb
+          del /S bin\*.manifest
+          cmake -E tar cf ${{ steps.archieve_name.outputs.zipname }} bin
+      - name: release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "build/${{ steps.archieve_name.outputs.zipname }}"
+          tag: ${{ needs.setup.outputs.release }}
+          token: ${{ secrets.GITHUB_TOKEN }}

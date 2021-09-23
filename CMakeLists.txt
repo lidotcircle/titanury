@@ -38,6 +38,9 @@ foreach (COMMAND_DIR ${COMMAND_DIR_LIST})
     add_executable(${COMMAND_DIR})
     target_sources(${COMMAND_DIR} PRIVATE ${COMMAND_FILES})
     target_link_libraries(${COMMAND_DIR} PRIVATE titanscript)
+    set_target_properties(${COMMAND_DIR} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
     CopyTitanEngineDLL(${COMMAND_DIR})
 endforeach()
 
