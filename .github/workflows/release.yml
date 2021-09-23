@@ -49,8 +49,8 @@ jobs:
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -G "NMake Makefiles" ..
           nmake
-          del /S bin\*.pdb
-          del /S bin\*.manifest
+          del bin\*.pdb
+          del bin\*.manifest
           cmake -E tar cf ${{ steps.archieve_name.outputs.zipname }} bin
       - name: release
         uses: ncipollo/release-action@v1
