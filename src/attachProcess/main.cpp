@@ -25,7 +25,7 @@ int main (int argc, char** argv) {
     string processName;
     int attach_ms = 0;
 
-    cxxopts::Options options("setHWBP", "attach process and set a hardware breakpoint");
+    cxxopts::Options options(argv[0], "attach to a running process but do nothing");
     options.add_options()
         ("p,pid", "target process pid", cxxopts::value<int>(pid), "<pid>")
         ("n,pname", "process name", cxxopts::value<string>(processName), "<process name>")

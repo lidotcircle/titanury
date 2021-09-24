@@ -32,7 +32,7 @@ int main (int argc, char** argv) {
     string module;
     string funcname;
 
-    cxxopts::Options options("setHWBP", "attach process and set a hardware breakpoint");
+    cxxopts::Options options(argv[0], "attach process and set a hardware breakpoint");
     options.add_options()
         ("p,pid", "target process pid", cxxopts::value<int>(pid), "<pid>")
         ("n,pname", "process name", cxxopts::value<string>(processName), "<process name>")

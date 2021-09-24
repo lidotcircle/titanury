@@ -9,7 +9,7 @@ using namespace std;
 int main (int argc, char** argv) {
     string dllname;
 
-    cxxopts::Options options("setHWBP", "attach process and set a hardware breakpoint");
+    cxxopts::Options options(argv[0], "load a single dynamic-link library");
     options.add_options()
         ("n,dll",  "dynamic-link library name eg. kernel32.dll", cxxopts::value<string>(dllname), "<dll>")
         ("h,help", "print this help");
