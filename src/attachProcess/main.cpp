@@ -12,32 +12,24 @@ using namespace std;
 std::mutex at_m;
 std::condition_variable at_cv;
 static bool attachFinish = false;
-static bool attachedSuccess = false;
+static bool attachSuccess = false;
 void attach_hello() {
     cout << "attached" << endl;
     attachFinish = true;
-    attachedSuccess = true;
+    attachSuccess = true;
     at_cv.notify_one();
-}
-
-static int n = 0;
-void hwbp_hello(void* ptr) {
-    cout << "0x" << ptr << " hardware breakpoint hit " << n << endl;
-    n++;
 }
 
 int main (int argc, char** argv) {
     int pid = 0;
     string processName;
-    string module;
-    string funcname;
+    int attach_ms = 0;
 
     cxxopts::Options options("setHWBP", "attach process and set a hardware breakpoint");
     options.add_options()
         ("p,pid", "target process pid", cxxopts::value<int>(pid), "<pid>")
         ("n,pname", "process name", cxxopts::value<string>(processName), "<process name>")
-        ("m,module", "module name eg. kernel32.dll", cxxopts::value<string>(module)->default_value("kernel32.dll"), "<module>")
-        ("f,function", "function name of the module", cxxopts::value<string>(funcname)->default_value("ReadFile"), "<func>")
+        ("ms", "delay from attach to detach, 0 means waiting user hit <enter>", cxxopts::value<int>(attach_ms)->default_value("0"), "<millisecond>")
         ("h,help", "print this help");
     auto result = options.parse(argc, argv);
 
@@ -72,21 +64,17 @@ int main (int argc, char** argv) {
     std::unique_lock<std::mutex> lock(at_m);
     at_cv.wait(lock, []() {return attachFinish;});
 
-    if (!attachedSuccess)
+    if (!attachSuccess)
         return 1;
 
-    auto funcaddr = TE::UE::ImporterGetRemoteAPIAddressEx(const_cast<char*>(module.c_str()), const_cast<char*>(funcname.c_str()));
-    if (!funcaddr) {
-        cout << "Get Debuggee address of " << module << ":" << funcname << " failed" << endl;
-        return 1;
+    if (attach_ms == 0) {
+        std::cout << "press ENTER key to detach...";
+        for (char c = 0; c != '\n'; c = std::cin.get());
+    } else {
+        std::this_thread::sleep_for(attach_ms * 1ms);
     }
 
-    if (!TE::UE::SetHardwareBreakPoint(funcaddr, TE::UE::UE_DR0, TE::UE::UE_HARDWARE_EXECUTE, TE::UE::UE_HARDWARE_SIZE_1, hwbp_hello)) {
-        cout << "Set HWBP at " << module << ":" << funcname << " failed" << endl;
-        return 1;
-    }
-
-    cout << "set HWBP at " << module << ":" << funcname << endl;
+    TE::UE::DetachDebugger(pid);
     debuggerLoop.join();
 
     return 0;
