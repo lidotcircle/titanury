@@ -1,55 +1,17 @@
 #include <cxxopts.hpp>
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <thread>
 #include <Windows.h>
-#include <TlHelp32.h>
 #include "transcript.h"
 using namespace std;
 
-BYTE* dwGetModuleBaseAddress(DWORD dwProcessID, const string& moduleName)
-{
-    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessID);
-    BYTE* dwModuleBaseAddress = NULL;
-    if (hSnapshot != INVALID_HANDLE_VALUE) {
-        MODULEENTRY32 ModuleEntry32 = { 0 };
-        ModuleEntry32.dwSize = sizeof(MODULEENTRY32);
-        if (Module32First(hSnapshot, &ModuleEntry32))
-        {
-            do
-            {
-                if (_stricmp(ModuleEntry32.szModule, moduleName.c_str()) == 0)
-                {
-                    dwModuleBaseAddress = ModuleEntry32.modBaseAddr;
-                    break;
-                }
-            } while (Module32Next(hSnapshot, &ModuleEntry32));
-        }
-        CloseHandle(hSnapshot);
-    }
-    return dwModuleBaseAddress;
-}
-
-vector<string> string_split(const string &str, const string& delim) {
-    size_t off = 0;
-    size_t pos = 0;
-    vector<string> ans;
-    while ((pos = str.find(delim, off)) != std::string::npos)
-    {
-        ans.push_back(str.substr(off, pos - off));
-        off = pos + delim.size();
-    }
-
-    if (off < str.size())
-        ans.push_back(str.substr(off));
-
-    return ans;
-}
 
 bool GetMemoryExpr(DWORD pid, HANDLE pHandle, const std::string& expr, DWORD* out) {
     auto kvkv = string_split(expr, "+");
-    void* value = (void*)dwGetModuleBaseAddress(pid, kvkv[0]);
+    void* value = GetModuleBaseAddress(pid, kvkv[0]);
     if (value == nullptr) {
         std::cerr << "can't get module base address '" << kvkv[0] << "'" << endl;
         return false;
@@ -138,7 +100,7 @@ int main (int argc, char** argv) {
 
     for (auto& kv: valpairs) {
         std::cout << "MemoryExpression['" << kv.first << "'] " << string(ml - kv.first.size(), ' ')
-            << "= 0x" << std::hex << kv.second << endl;
+            << "= 0x" << std::hex << std::setfill('0') << std::setw(8) << kv.second << endl;
     }
 
     return 0;

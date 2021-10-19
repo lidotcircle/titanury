@@ -1,6 +1,9 @@
 #include "transcript.h"
+#include <string>
+#include <vector>
 #include <Windows.h>
 #include <tlhelp32.h>
+using namespace std;
 
 
 int GetPIDByProcessName(const std::string& processName)
@@ -26,7 +29,7 @@ int GetPIDByProcessName(const std::string& processName)
 
     do
     {
-        if (std::string(pe32.szExeFile) == processName.c_str())
+        if (_stricmp(pe32.szExeFile, processName.c_str()))
         {
             pid = pe32.th32ProcessID;
             break;
@@ -52,4 +55,43 @@ std::string GetLastErrorAsString()
     LocalFree(messageBuffer);
             
     return message;
+}
+
+void* GetModuleBaseAddress(int dwProcessID, const string& moduleName)
+{
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessID);
+    BYTE* dwModuleBaseAddress = NULL;
+    if (hSnapshot != INVALID_HANDLE_VALUE) {
+        MODULEENTRY32 ModuleEntry32 = { 0 };
+        ModuleEntry32.dwSize = sizeof(MODULEENTRY32);
+        if (Module32First(hSnapshot, &ModuleEntry32))
+        {
+            do
+            {
+                if (_stricmp(ModuleEntry32.szModule, moduleName.c_str()) == 0)
+                {
+                    dwModuleBaseAddress = ModuleEntry32.modBaseAddr;
+                    break;
+                }
+            } while (Module32Next(hSnapshot, &ModuleEntry32));
+        }
+        CloseHandle(hSnapshot);
+    }
+    return dwModuleBaseAddress;
+}
+
+vector<string> string_split(const string &str, const string& delim) {
+    size_t off = 0;
+    size_t pos = 0;
+    vector<string> ans;
+    while ((pos = str.find(delim, off)) != std::string::npos)
+    {
+        ans.push_back(str.substr(off, pos - off));
+        off = pos + delim.size();
+    }
+
+    if (off < str.size())
+        ans.push_back(str.substr(off));
+
+    return ans;
 }
