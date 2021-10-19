@@ -8,10 +8,10 @@
 #include "transcript.h"
 using namespace std;
 
-DWORD dwGetModuleBaseAddress(DWORD dwProcessID, const string& moduleName)
+BYTE* dwGetModuleBaseAddress(DWORD dwProcessID, const string& moduleName)
 {
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessID);
-    DWORD dwModuleBaseAddress = 0;
+    BYTE* dwModuleBaseAddress = NULL;
     if (hSnapshot != INVALID_HANDLE_VALUE) {
         MODULEENTRY32 ModuleEntry32 = { 0 };
         ModuleEntry32.dwSize = sizeof(MODULEENTRY32);
@@ -19,9 +19,9 @@ DWORD dwGetModuleBaseAddress(DWORD dwProcessID, const string& moduleName)
         {
             do
             {
-                if (strcmp(ModuleEntry32.szModule, moduleName.c_str()) == 0)
+                if (_stricmp(ModuleEntry32.szModule, moduleName.c_str()) == 0)
                 {
-                    dwModuleBaseAddress = (DWORD)ModuleEntry32.modBaseAddr;
+                    dwModuleBaseAddress = ModuleEntry32.modBaseAddr;
                     break;
                 }
             } while (Module32Next(hSnapshot, &ModuleEntry32));
@@ -37,19 +37,23 @@ vector<string> string_split(const string &str, const string& delim) {
     vector<string> ans;
     while ((pos = str.find(delim, off)) != std::string::npos)
     {
-        ans.push_back(str.substr(off, pos));
-        off = pos + ans.back().size() + delim.size();
+        ans.push_back(str.substr(off, pos - off));
+        off = pos + delim.size();
     }
 
-    if (ans.size() > 0 && off < str.size())
+    if (off < str.size())
         ans.push_back(str.substr(off));
 
     return ans;
 }
 
-void* getMemoryExpr(DWORD pid, HANDLE pHandle, const std::string& expr) {
+bool GetMemoryExpr(DWORD pid, HANDLE pHandle, const std::string& expr, DWORD* out) {
     auto kvkv = string_split(expr, "+");
     void* value = (void*)dwGetModuleBaseAddress(pid, kvkv[0]);
+    if (value == nullptr) {
+        std::cerr << "can't get module base address '" << kvkv[0] << "'" << endl;
+        return false;
+    }
     kvkv.erase(kvkv.begin());
 
     for(auto& v: kvkv) {
@@ -60,12 +64,12 @@ void* getMemoryExpr(DWORD pid, HANDLE pHandle, const std::string& expr) {
 
         if (!ReadProcessMemory(pHandle, (void*)((int)value + intv), &value, 4, nullptr)) {
             cerr << "read expr '" << expr << "' failed, at 0x" << value << endl;
-            return nullptr;
+            return false;
         }
     }
 
-    cout << "Expr '" << expr << "': " << value << endl;
-    return value;
+    *out = (DWORD)value;
+    return true;
 }
 
 int main (int argc, char** argv) {
@@ -79,14 +83,20 @@ int main (int argc, char** argv) {
         ("n,procname", "target process name", cxxopts::value<string>(procname), "<procname>")
         ("e,exprs", "memory expressions", cxxopts::value<vector<string>>(exprs), "<exprs>")
         ("h,help", "print this help");
+    options.parse_positional("exprs");
     auto result = options.parse(argc, argv);
 
+    if (!result.unmatched().empty()) {
+        cerr << options.help();
+        return 1;
+    }
+
     if (result.count("help") > 0) {
-        cout << options.help();
+        std::cout << options.help();
         return 0;
     }
 
-    if (pid == -1) {
+    if (pid <= 0) {
         if (procname.empty()) {
             cerr << "specify pid or process name" << endl;
             cerr << options.help();
@@ -94,11 +104,11 @@ int main (int argc, char** argv) {
         }
 
         pid = GetPIDByProcessName(procname);
-        
-        if (pid <= 0) {
-            cerr << "can't find process " << procname << endl;
-            return 1;
-        }
+    }
+
+    if (pid <= 0) {
+        cerr << "can't find process " << procname << endl;
+        return 1;
     }
 
     if (exprs.empty()) {
@@ -112,8 +122,24 @@ int main (int argc, char** argv) {
         return 1;
     }
 
-    for (auto& expr: exprs)
-        auto val = getMemoryExpr(pid, ph, expr);
+    vector<pair<string, DWORD>> valpairs;
+    size_t ml = 0;
+    for (auto& expr: exprs) {
+        DWORD val = 0;
+        if (!GetMemoryExpr(pid, ph, expr, &val)) {
+            std::cerr << "!!! Get memory expression '" << expr << "' failed." << endl;
+            continue;
+        }
+
+        if (expr.size() > ml)
+            ml = expr.size();
+        valpairs.push_back(make_pair(expr, val));
+    }
+
+    for (auto& kv: valpairs) {
+        std::cout << "MemoryExpression['" << kv.first << "'] " << string(ml - kv.first.size(), ' ')
+            << "= 0x" << std::hex << kv.second << endl;
+    }
 
     return 0;
 }
