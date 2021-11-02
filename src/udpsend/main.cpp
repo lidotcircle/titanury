@@ -34,8 +34,9 @@ int main(int argc, char* argv[]) {
     string remoteaddr;
 
     cxxopts::Options options(argv[0], "send lines from stdin to udp address");
+    options.allow_unrecognised_options();
     options.add_options()
-        ("p,port", "listening port", cxxopts::value<uint16_t>(remoteport), "<port>")
+        ("p,port", "listening port", cxxopts::value<uint16_t>(remoteport)->default_value("7710"), "<port>")
         ("a,addr", "bind address of listening udp socket", cxxopts::value<string>(remoteaddr)->default_value("127.0.0.1"), "<addr>")
         ("print",  "print recieved message", cxxopts::value<bool>(print))
         ("h,help", "print help");
@@ -49,12 +50,6 @@ int main(int argc, char* argv[]) {
     if (result.count("help") > 0) {
         std::cout << options.help();
         return 0;
-    }
-
-    if (result.count("port") == 0) {
-        cerr << "port is required" << endl;
-        cerr << options.help();
-        return 1;
     }
 
     sockaddr_in saddr;

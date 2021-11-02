@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
     string bindaddr;
 
     cxxopts::Options options(argv[0], "recv udp message and print it");
+    options.allow_unrecognised_options();
     options.add_options()
         ("p,port",  "listening port", cxxopts::value<uint16_t>(udpport), "<port>")
         ("a,addr",  "bind address of listening udp socket", cxxopts::value<string>(bindaddr)->default_value("0.0.0.0"), "<addr>")
