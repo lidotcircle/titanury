@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "kernel_object.h"
 
 
 int GetPIDByProcessName(const std::string& processName);
