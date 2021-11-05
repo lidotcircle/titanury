@@ -18,4 +18,11 @@ struct KernelObjectInfo {
 std::vector<KernelObjectInfo>
     get_kernel_object_list(const std::string& path);
 
+/**
+ * get kernel object type
+ * @param path the path to get
+ * @return the type of kernel object in string
+ */
+std::string get_kernel_object_type(const std::string& path);
+
 #endif __TITAN_KERNEL_OBJECT_H_

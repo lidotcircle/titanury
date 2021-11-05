@@ -27,7 +27,7 @@ vector<KernelObjectInfo> get_kernel_object_list(const std::string& path) {
 
     InitializeObjectAttributes(&objectAttributes, &str, OBJ_CASE_INSENSITIVE, NULL, NULL);
     if (!NT_SUCCESS(NtOpenDirectoryObject(&handle, DIRECTORY_QUERY, &objectAttributes)))
-        throw std::runtime_error("NtOpenDirectoryObject failed");
+        throw std::runtime_error("NtOpenDirectoryObject '" + path + "' failed");
 
     ULONG queryContext = 0, rLength;
     do {
@@ -57,4 +57,26 @@ vector<KernelObjectInfo> get_kernel_object_list(const std::string& path) {
 
     NtClose(handle);
     return result;
+}
+
+std::string get_kernel_object_type(const std::string& path) {
+    if (path == "\\") {
+        return "Directory";
+    }
+
+    auto last_slash = path.find_last_of("\\");
+    if (last_slash == string::npos) {
+        throw std::runtime_error("Invalid path");
+    }
+
+    auto parent_path = path.substr(0, last_slash);
+    auto siblings = get_kernel_object_list(parent_path);
+
+    for (auto& sibling : siblings) {
+        if (sibling.name == path.substr(last_slash + 1)) {
+            return sibling.type;
+        }
+    }
+
+    throw std::runtime_error("Invalid path");
 }
