@@ -66,8 +66,14 @@ int main(int argc, char* argv[]) {
     }
 
     if (!path.empty()) {
-        cerr << "not implemented" << endl;
-        return 1;
+        try {
+        auto type = get_kernel_object_type(path);
+        cout << type << endl;
+        return 0;
+        } catch (std::exception e) {
+            cerr << "failed to get kernel object type: " << e.what() << endl;
+            return 1;
+        }
     }
 
     if (dirs.empty()) {
@@ -79,6 +85,7 @@ int main(int argc, char* argv[]) {
     try
     {
         kernel_object_ls(dirs, type, show_type);
+        return 0;
     }
     catch (std::runtime_error &e)
     {

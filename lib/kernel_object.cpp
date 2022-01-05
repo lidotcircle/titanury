@@ -59,6 +59,7 @@ vector<KernelObjectInfo> get_kernel_object_list(const std::string& path) {
     return result;
 }
 
+
 std::string get_kernel_object_type(const std::string& path) {
     if (path == "\\") {
         return "Directory";
@@ -70,6 +71,8 @@ std::string get_kernel_object_type(const std::string& path) {
     }
 
     auto parent_path = path.substr(0, last_slash);
+    if (parent_path.empty())
+        parent_path = "\\";
     auto siblings = get_kernel_object_list(parent_path);
 
     for (auto& sibling : siblings) {
